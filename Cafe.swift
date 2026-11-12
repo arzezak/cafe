@@ -44,12 +44,14 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     let item = NSMenuItem()
     let awake = assertion != nil
-    item.view = Row(image: badge(awake ? "cup.and.saucer.fill" : "cup.and.saucer", on: awake), title: "Keep Awake") {
+    item.view = Row(image: badge(cup, on: awake), title: "Keep Awake") {
       [unowned self] in toggle()
     }
 
+    let power = NSImage(systemSymbolName: "power", accessibilityDescription: nil)!
+      .withSymbolConfiguration(.init(pointSize: 13, weight: .medium))!
     let login = NSMenuItem()
-    login.view = Row(image: badge("power", on: SMAppService.mainApp.status == .enabled), title: "Open at Login") {
+    login.view = Row(image: badge(power, on: SMAppService.mainApp.status == .enabled), title: "Open at Login") {
       [unowned self] in toggleLogin()
     }
 
@@ -79,16 +81,19 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
     return header
   }
 
-  func badge(_ name: String, on: Bool) -> NSImage {
-    let configuration = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
-      .applying(.init(paletteColors: [on ? .white : .secondaryLabelColor]))
-    let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)!
-      .withSymbolConfiguration(configuration)!
+  func badge(_ glyph: NSImage, on: Bool) -> NSImage {
+    let scale = min(1, 16 / max(glyph.size.width, glyph.size.height))
+    let size = NSSize(width: glyph.size.width * scale, height: glyph.size.height * scale)
+    let tinted = NSImage(size: size, flipped: false) { rect in
+      glyph.draw(in: rect)
+      (on ? NSColor.white : NSColor.secondaryLabelColor).set()
+      rect.fill(using: .sourceIn)
+      return true
+    }
     return NSImage(size: NSSize(width: 26, height: 26), flipped: false) { rect in
       (on ? NSColor.controlAccentColor : NSColor.quaternaryLabelColor).setFill()
       NSBezierPath(ovalIn: rect).fill()
-      let size = symbol.size
-      symbol.draw(in: NSRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height))
+      tinted.draw(in: NSRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height))
       return true
     }
   }
@@ -115,9 +120,12 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
   }
 
+  var cup: NSImage {
+    NSImage(named: assertion == nil ? "CupOff" : "CupOn")!
+  }
+
   func updateIcon() {
-    let symbol = assertion == nil ? "cup.and.saucer" : "cup.and.saucer.fill"
-    statusItem.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Cafe")
+    statusItem.button?.image = cup
   }
 }
 
