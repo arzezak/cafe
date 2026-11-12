@@ -5,6 +5,7 @@ import IOKit.pwr_mgt
 @MainActor
 final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
   let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+  let menu = NSMenu()
   var assertion: IOPMAssertionID? {
     didSet { updateIcon() }
   }
@@ -17,10 +18,23 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    let menu = NSMenu()
     menu.delegate = self
-    statusItem.menu = menu
+    if let button = statusItem.button {
+      button.target = self
+      button.action = #selector(handleClick)
+      button.sendAction(on: [.leftMouseDown, .rightMouseUp])
+    }
     updateIcon()
+  }
+
+  @objc func handleClick() {
+    if NSApp.currentEvent?.type == .rightMouseUp {
+      toggle()
+    } else {
+      statusItem.menu = menu
+      statusItem.button?.performClick(nil)
+      statusItem.menu = nil
+    }
   }
 
   func menuNeedsUpdate(_ menu: NSMenu) {
