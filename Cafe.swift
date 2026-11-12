@@ -1,5 +1,6 @@
 import AppKit
 import IOKit.pwr_mgt
+import ServiceManagement
 
 @main
 @MainActor
@@ -42,12 +43,21 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
     header.view = headerView()
 
     let item = NSMenuItem()
-    item.view = Row(image: badge(), title: "Keep Awake") { [unowned self] in toggle() }
+    let awake = assertion != nil
+    item.view = Row(image: badge(awake ? "cup.and.saucer.fill" : "cup.and.saucer", on: awake), title: "Keep Awake") {
+      [unowned self] in toggle()
+    }
+
+    let login = NSMenuItem()
+    login.view = Row(image: badge("power", on: SMAppService.mainApp.status == .enabled), title: "Open at Login") {
+      [unowned self] in toggleLogin()
+    }
 
     menu.removeAllItems()
     menu.addItem(header)
     menu.addItem(.separator())
     menu.addItem(item)
+    menu.addItem(login)
     menu.addItem(.separator())
     menu.addItem(NSMenuItem(title: "Quit Cafe", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
   }
@@ -69,13 +79,12 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
     return header
   }
 
-  func badge() -> NSImage {
-    let on = assertion != nil
-    let configuration = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+  func badge(_ name: String, on: Bool) -> NSImage {
+    let configuration = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
       .applying(.init(paletteColors: [on ? .white : .secondaryLabelColor]))
-    let symbol = NSImage(systemSymbolName: on ? "cup.and.saucer.fill" : "cup.and.saucer", accessibilityDescription: nil)!
+    let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)!
       .withSymbolConfiguration(configuration)!
-    return NSImage(size: NSSize(width: 24, height: 24), flipped: false) { rect in
+    return NSImage(size: NSSize(width: 26, height: 26), flipped: false) { rect in
       (on ? NSColor.controlAccentColor : NSColor.quaternaryLabelColor).setFill()
       NSBezierPath(ovalIn: rect).fill()
       let size = symbol.size
@@ -97,6 +106,15 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
   }
 
+  func toggleLogin() {
+    let service = SMAppService.mainApp
+    do {
+      try service.status == .enabled ? service.unregister() : service.register()
+    } catch {
+      NSLog("Open at Login: \(error.localizedDescription)")
+    }
+  }
+
   func updateIcon() {
     let symbol = assertion == nil ? "cup.and.saucer" : "cup.and.saucer.fill"
     statusItem.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Cafe")
@@ -110,10 +128,10 @@ final class Row: NSView {
     self.action = action
     let stack = NSStackView(views: [NSImageView(image: image), NSTextField(labelWithString: title)])
     stack.spacing = 8
-    stack.edgeInsets = NSEdgeInsets(top: 4, left: 14, bottom: 4, right: 14)
-    stack.frame.size = stack.fittingSize
+    stack.edgeInsets = NSEdgeInsets(top: 0, left: 14, bottom: 0, right: 14)
+    stack.frame = NSRect(origin: NSPoint(x: 0, y: 3), size: stack.fittingSize)
     stack.autoresizingMask = [.width]
-    super.init(frame: stack.frame)
+    super.init(frame: stack.frame.insetBy(dx: 0, dy: -3))
     autoresizingMask = [.width]
     addSubview(stack)
   }
