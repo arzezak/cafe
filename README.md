@@ -1,4 +1,4 @@
-# cafe
+# Cafe
 
 A menu bar toggle that keeps a Mac awake, like `caffeinate -s`.
 
