@@ -2,6 +2,8 @@
 
 A menu bar toggle that keeps a Mac awake, like `caffeinate -s`.
 
+<img src="screenshots/off.png" width="244" alt="Cafe's menu with Keep Awake off"> <img src="screenshots/on.png" width="244" alt="Cafe's menu with Keep Awake on">
+
 Click the cup and choose Keep Awake to turn it on: the icon fills in and the system won't sleep while on AC power (the display can still sleep). Choose it again to turn it off. Right-click the cup to toggle it without opening the menu. It always starts off.
 
 ## Install
