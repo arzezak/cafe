@@ -1,0 +1,65 @@
+#!/bin/sh
+set -eu
+
+cd "$(dirname "$0")"
+
+repo=arzezak/cafe
+tap=arzezak/homebrew-tap
+profile=cafe-notary
+
+version=$(sed -n 's/^ *MARKETING_VERSION: *"\(.*\)"/\1/p' project.yml)
+tag="v$version"
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "error: the working tree has uncommitted changes" >&2
+  exit 1
+fi
+if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+  echo "error: $tag already exists; bump MARKETING_VERSION in project.yml" >&2
+  exit 1
+fi
+
+xcodegen generate
+xcodebuild -project Cafe.xcodeproj -scheme Cafe -configuration Release \
+  -derivedDataPath build \
+  CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Developer ID Application" \
+  OTHER_CODE_SIGN_FLAGS=--timestamp CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+  ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO clean build
+
+cd build/Build/Products/Release
+rm -f Cafe.zip
+ditto -c -k --keepParent Cafe.app Cafe.zip
+xcrun notarytool submit Cafe.zip --keychain-profile "$profile" --wait
+# notarytool exits 0 on a rejection; stapling is what fails without a ticket.
+xcrun stapler staple Cafe.app
+rm Cafe.zip
+ditto -c -k --keepParent Cafe.app Cafe.zip
+sha=$(shasum -a 256 Cafe.zip | cut -d' ' -f1)
+
+git tag "$tag"
+git push origin HEAD "$tag"
+gh release create "$tag" Cafe.zip --repo "$repo" --title "$version" --generate-notes
+
+cask=$(cat <<EOF
+cask "cafe" do
+  version "$version"
+  sha256 "$sha"
+
+  url "https://github.com/$repo/releases/download/v#{version}/Cafe.zip"
+  name "Cafe"
+  desc "Menu bar toggle that keeps a Mac awake"
+  homepage "https://github.com/$repo"
+
+  depends_on macos: ">= :ventura"
+
+  app "Cafe.app"
+end
+EOF
+)
+existing=$(gh api "repos/$tap/contents/Casks/cafe.rb" --jq .sha 2>/dev/null || true)
+gh api -X PUT "repos/$tap/contents/Casks/cafe.rb" \
+  -f message="cafe $version" \
+  -f content="$(printf '%s\n' "$cask" | base64)" \
+  ${existing:+-f sha="$existing"} >/dev/null
+
+echo "Released $tag: brew install --cask arzezak/tap/cafe"
