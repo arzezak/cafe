@@ -38,7 +38,6 @@ check_ready() {
     exit 1
   fi
 
-  # GitHub replaces a file only when given the sha of its current version.
   cask_sha=$(gh api "$cask_file" --jq .sha)
 }
 
@@ -60,11 +59,7 @@ zip_app() {
 notarize() {
   zip_app
   xcrun notarytool submit "$zip" --keychain-profile "$notary_profile" --wait
-
-  # notarytool exits 0 on a rejection; stapling is what fails without a ticket.
   xcrun stapler staple "$app"
-
-  # The release ships the stapled app, not the copy Apple received.
   zip_app
 
   checksum=$(shasum -a 256 "$zip")
