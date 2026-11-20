@@ -67,16 +67,13 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
   }
 
   func headerView() -> NSView {
-    let title = NSTextField(labelWithString: "Cafe")
+    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+    let title = NSTextField(labelWithString: "Cafe v\(version)")
     title.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-    let status = NSTextField(labelWithString: assertion == nil ? "Off" : "On")
-    status.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-    status.textColor = .secondaryLabelColor
 
-    let header = NSStackView(views: [title, status])
+    let header = NSStackView(views: [title])
     header.orientation = .vertical
     header.alignment = .leading
-    header.spacing = 1
     header.edgeInsets = NSEdgeInsets(top: 4, left: 14, bottom: 6, right: 14)
     header.frame.size = header.fittingSize
     header.autoresizingMask = [.width]
