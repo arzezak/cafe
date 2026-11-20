@@ -25,6 +25,8 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
       button.action = #selector(handleClick)
       button.sendAction(on: [.leftMouseDown, .rightMouseUp])
     }
+
+    if UserDefaults.standard.bool(forKey: "awake") { toggle() }
     updateIcon()
   }
 
@@ -109,6 +111,8 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
         "Cafe menu bar app" as CFString, &identifier)
       if result == kIOReturnSuccess { assertion = identifier }
     }
+
+    UserDefaults.standard.set(assertion != nil, forKey: "awake")
   }
 
   func toggleLogin() {
