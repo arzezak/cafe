@@ -47,7 +47,8 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     let item = NSMenuItem()
     let awake = assertion != nil
-    item.view = Row(image: badge(cup, on: awake), title: "Keep Awake") {
+    // Centered by eye: the handle pulls the cup's bounding box to the right of its body.
+    item.view = Row(image: badge(cup, on: awake, offset: NSPoint(x: 1, y: -1)), title: "Keep Awake") {
       [unowned self] in toggle()
     }
 
@@ -89,7 +90,7 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
     return header
   }
 
-  func badge(_ glyph: NSImage, on: Bool) -> NSImage {
+  func badge(_ glyph: NSImage, on: Bool, offset: NSPoint = .zero) -> NSImage {
     let scale = min(1, 16 / max(glyph.size.width, glyph.size.height))
     let size = NSSize(width: glyph.size.width * scale, height: glyph.size.height * scale)
     let tinted = NSImage(size: size, flipped: false) { rect in
@@ -98,12 +99,49 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
       rect.fill(using: .sourceIn)
       return true
     }
+    let ink = inkCenter(of: glyph, drawnAt: size)
+
     return NSImage(size: NSSize(width: 26, height: 26), flipped: false) { rect in
       (on ? NSColor.controlAccentColor : NSColor.quaternaryLabelColor).setFill()
       NSBezierPath(ovalIn: rect).fill()
-      tinted.draw(in: NSRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height))
+
+      // Ink an odd number of pixels tall can't sit on the center. Rounding up centers the power symbol's ring.
+      let origin = NSPoint(
+        x: ((rect.midX - ink.x) * 2).rounded(.up) / 2 + offset.x,
+        y: ((rect.midY - ink.y) * 2).rounded(.up) / 2 + offset.y)
+
+      tinted.draw(in: NSRect(origin: origin, size: size))
       return true
     }
+  }
+
+  func inkCenter(of glyph: NSImage, drawnAt size: NSSize) -> NSPoint {
+    let pixels = NSBitmapImageRep(
+      bitmapDataPlanes: nil, pixelsWide: Int(ceil(size.width * 2)), pixelsHigh: Int(ceil(size.height * 2)),
+      bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+      bytesPerRow: 0, bitsPerPixel: 0)!
+
+    pixels.size = NSSize(width: Double(pixels.pixelsWide) / 2, height: Double(pixels.pixelsHigh) / 2)
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: pixels)
+    glyph.draw(in: NSRect(origin: .zero, size: size))
+    NSGraphicsContext.restoreGraphicsState()
+
+    var inkColumns: [Int] = []
+    var inkRows: [Int] = []
+
+    for row in 0..<pixels.pixelsHigh {
+      for column in 0..<pixels.pixelsWide where pixels.colorAt(x: column, y: row)!.alphaComponent > 0.5 {
+        inkColumns.append(column)
+        inkRows.append(row)
+      }
+    }
+
+    guard let left = inkColumns.min(), let right = inkColumns.max(), let top = inkRows.min(), let bottom = inkRows.max() else {
+      return NSPoint(x: size.width / 2, y: size.height / 2)
+    }
+
+    return NSPoint(x: Double(left + right + 1) / 4, y: Double(pixels.pixelsHigh) / 2 - Double(top + bottom + 1) / 4)
   }
 
   func toggle() {
