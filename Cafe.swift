@@ -10,6 +10,7 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
   var assertion: IOPMAssertionID? {
     didSet { updateIcon() }
   }
+  var batteryAssertion: IOPMAssertionID?
 
   static func main() {
     let application = NSApplication.shared
@@ -50,6 +51,13 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
       [unowned self] in toggle()
     }
 
+    let battery = NSMenuItem()
+    let batteryGlyph = NSImage(systemSymbolName: "battery.100percent", accessibilityDescription: nil)!
+      .withSymbolConfiguration(.init(pointSize: 13, weight: .medium))!
+    battery.view = Row(image: badge(batteryGlyph, on: UserDefaults.standard.bool(forKey: "battery")), title: "On Battery") {
+      [unowned self] in toggleBattery()
+    }
+
     let power = NSImage(systemSymbolName: "power", accessibilityDescription: nil)!
       .withSymbolConfiguration(.init(pointSize: 13, weight: .medium))!
     let login = NSMenuItem()
@@ -61,6 +69,7 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.addItem(header)
     menu.addItem(.separator())
     menu.addItem(item)
+    menu.addItem(battery)
     menu.addItem(login)
     menu.addItem(.separator())
     menu.addItem(NSMenuItem(title: "Quit Cafe", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
@@ -102,14 +111,35 @@ final class Cafe: NSObject, NSApplicationDelegate, NSMenuDelegate {
       IOPMAssertionRelease(assertion)
       self.assertion = nil
     } else {
-      var identifier: IOPMAssertionID = 0
-      let result = IOPMAssertionCreateWithName(
-        kIOPMAssertionTypePreventSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
-        "Cafe menu bar app" as CFString, &identifier)
-      if result == kIOReturnSuccess { assertion = identifier }
+      assertion = createAssertion(kIOPMAssertionTypePreventSystemSleep)
     }
 
     UserDefaults.standard.set(assertion != nil, forKey: "awake")
+    updateBatteryAssertion()
+  }
+
+  func toggleBattery() {
+    UserDefaults.standard.set(!UserDefaults.standard.bool(forKey: "battery"), forKey: "battery")
+    updateBatteryAssertion()
+  }
+
+  func updateBatteryAssertion() {
+    let wanted = assertion != nil && UserDefaults.standard.bool(forKey: "battery")
+
+    if wanted, batteryAssertion == nil {
+      batteryAssertion = createAssertion(kIOPMAssertionTypePreventUserIdleSystemSleep)
+    } else if !wanted, let batteryAssertion {
+      IOPMAssertionRelease(batteryAssertion)
+      self.batteryAssertion = nil
+    }
+  }
+
+  func createAssertion(_ type: String) -> IOPMAssertionID? {
+    var identifier: IOPMAssertionID = 0
+    let result = IOPMAssertionCreateWithName(
+      type as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn), "Cafe menu bar app" as CFString, &identifier)
+
+    return result == kIOReturnSuccess ? identifier : nil
   }
 
   func toggleLogin() {

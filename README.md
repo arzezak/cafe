@@ -10,6 +10,8 @@ Click the cup and choose Keep Awake to turn it on: the icon fills in and the Mac
 
 Cafe keeps the Mac awake on AC power only. On battery the cup stays on, but the Mac sleeps as usual, including when you close the lid, and Cafe takes effect again when you plug back in.
 
+Turn on On Battery in the menu to keep the Mac awake on battery too. Closing the lid still sleeps it.
+
 The display sleeps on its own schedule either way, and Apple menu → Sleep always works.
 
 ## Install
